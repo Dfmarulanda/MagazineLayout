@@ -426,12 +426,28 @@ public final class MagazineLayout: UICollectionViewLayout {
       guard let layoutAttributes = itemLayoutAttributes[itemLocation] else {
         continue
       }
-
-      layoutAttributes.frame = itemFrame
+      
+      var movedItemFrame = itemFrame
+      let sectionMetric = metricsForSection(atIndex: itemLocation.sectionIndex)
+      if sectionMetric.isWaterfallLayout && itemLocation.elementIndex >= 2 {
+        let newY = previousFrameOfCellInColumn(itemLocation, numberOfColumns: 2)
+        let padding = sectionMetric.verticalSpacing
+        movedItemFrame = CGRect(x: itemFrame.origin.x,
+                                y: newY.origin.y + newY.size.height + padding,
+                                width: itemFrame.size.width,
+                                height: itemFrame.size.height)
+      }
+      layoutAttributes.frame = movedItemFrame
       layoutAttributesInRect.append(layoutAttributes)
     }
 
     return layoutAttributesInRect
+  }
+  
+  private func previousFrameOfCellInColumn(_ location: ElementLocation, numberOfColumns: Int) -> CGRect {
+    let previousIndex = location.elementIndex - numberOfColumns
+    guard let attribute = itemLayoutAttributes[ElementLocation(elementIndex: previousIndex, sectionIndex: location.sectionIndex)] else { return CGRect.zero }
+    return attribute.frame
   }
 
   override public func layoutAttributesForItem(
@@ -513,13 +529,7 @@ public final class MagazineLayout: UICollectionViewLayout {
       modelState.sectionIndicesToInsert.contains(itemIndexPath.section)
     {
       let attributes = layoutAttributesForItem(at: itemIndexPath)?.copy() as? UICollectionViewLayoutAttributes
-      attributes.map {
-        delegateMagazineLayout?.collectionView(
-          currentCollectionView,
-          layout: self,
-          initialLayoutAttributesForInsertedItemAt: itemIndexPath,
-          byModifying: $0)
-      }
+      attributes?.alpha = 0
       itemLayoutAttributesForPendingAnimations[itemIndexPath] = attributes
       return attributes
     } else if
@@ -543,13 +553,7 @@ public final class MagazineLayout: UICollectionViewLayout {
       modelState.sectionIndicesToDelete.contains(itemIndexPath.section)
     {
       let attributes = previousLayoutAttributesForItem(at: itemIndexPath)
-      attributes.map {
-        delegateMagazineLayout?.collectionView(
-          currentCollectionView,
-          layout: self,
-          finalLayoutAttributesForRemovedItemAt: itemIndexPath,
-          byModifying: $0)
-      }
+      attributes?.alpha = 0
       return attributes
     } else if
       let movedItemID = modelState.idForItemModel(at: itemIndexPath, .beforeUpdates),
@@ -570,25 +574,11 @@ public final class MagazineLayout: UICollectionViewLayout {
     at elementIndexPath: IndexPath)
     -> UICollectionViewLayoutAttributes?
   {
-   // If a supplementary view's visibility changes to `.hidden` due to a data source change, this
-    // function will get invoked with an `elementIndexPath` that crashes when its `section` is
-    // accessed.
-    guard !elementIndexPath.isEmpty else {
-      return super.initialLayoutAttributesForAppearingSupplementaryElement(
-        ofKind: elementKind,
-        at: elementIndexPath)
-    }
-
     if modelState.sectionIndicesToInsert.contains(elementIndexPath.section) {
       let attributes = layoutAttributesForSupplementaryView(
         ofKind: elementKind,
         at: elementIndexPath)?.copy() as? UICollectionViewLayoutAttributes
-      attributes.map {
-        modifySupplementaryViewLayoutAttributesForInsertAnimation(
-          $0,
-          ofKind: elementKind,
-          at: elementIndexPath)
-      }
+      attributes?.alpha = 0
       supplementaryViewLayoutAttributesForPendingAnimations[elementIndexPath] = attributes
       return attributes
     } else if
@@ -619,12 +609,7 @@ public final class MagazineLayout: UICollectionViewLayout {
       let attributes = previousLayoutAttributesForSupplementaryView(
         ofKind: elementKind,
         at: elementIndexPath)
-      attributes.map {
-        modifySupplementaryViewLayoutAttributesForDeleteAnimation(
-          $0,
-          ofKind: elementKind,
-          at: elementIndexPath)
-      }
+      attributes?.alpha = 0
       return attributes
     } else if
       let movedSectionID = modelState.idForSectionModel(
@@ -1165,64 +1150,6 @@ public final class MagazineLayout: UICollectionViewLayout {
     }
     
     return layoutAttributes
-  }
-
-  private func modifySupplementaryViewLayoutAttributesForInsertAnimation(
-    _ attributes: UICollectionViewLayoutAttributes,
-    ofKind elementKind: String,
-    at indexPath: IndexPath)
-  {
-    switch elementKind {
-    case MagazineLayout.SupplementaryViewKind.sectionHeader:
-      delegateMagazineLayout?.collectionView(
-        currentCollectionView,
-        layout: self,
-        initialLayoutAttributesForInsertedHeaderInSectionAtIndex: indexPath.section,
-        byModifying: attributes)
-    case MagazineLayout.SupplementaryViewKind.sectionFooter:
-      delegateMagazineLayout?.collectionView(
-        currentCollectionView,
-        layout: self,
-        initialLayoutAttributesForInsertedFooterInSectionAtIndex: indexPath.section,
-        byModifying: attributes)
-    case MagazineLayout.SupplementaryViewKind.sectionBackground:
-      delegateMagazineLayout?.collectionView(
-        currentCollectionView,
-        layout: self,
-        initialLayoutAttributesForInsertedBackgroundInSectionAtIndex: indexPath.section,
-        byModifying: attributes)
-    default:
-      assertionFailure("\(elementKind) is not a valid supplementary view element kind.")
-    }
-  }
-
-  private func modifySupplementaryViewLayoutAttributesForDeleteAnimation(
-    _ attributes: UICollectionViewLayoutAttributes,
-    ofKind elementKind: String,
-    at indexPath: IndexPath)
-  {
-    switch elementKind {
-    case MagazineLayout.SupplementaryViewKind.sectionHeader:
-      delegateMagazineLayout?.collectionView(
-        currentCollectionView,
-        layout: self,
-        finalLayoutAttributesForRemovedHeaderInSectionAtIndex: indexPath.section,
-        byModifying: attributes)
-    case MagazineLayout.SupplementaryViewKind.sectionFooter:
-      delegateMagazineLayout?.collectionView(
-        currentCollectionView,
-        layout: self,
-        finalLayoutAttributesForRemovedFooterInSectionAtIndex: indexPath.section,
-        byModifying: attributes)
-    case MagazineLayout.SupplementaryViewKind.sectionBackground:
-      delegateMagazineLayout?.collectionView(
-        currentCollectionView,
-        layout: self,
-        finalLayoutAttributesForRemovedBackgroundInSectionAtIndex: indexPath.section,
-        byModifying: attributes)
-    default:
-      assertionFailure("\(elementKind) is not a valid supplementary view element kind.")
-    }
   }
 
 }

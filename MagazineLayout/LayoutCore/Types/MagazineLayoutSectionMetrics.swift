@@ -53,6 +53,11 @@ struct MagazineLayoutSectionMetrics: Equatable {
       collectionView,
       layout: layout,
       insetsForItemsInSectionAtIndex: sectionIndex)
+    
+    isWaterfallLayout = delegate.collectionView(
+      collectionView,
+      layout: layout,
+      isWaterfallForItemsInSectionAt: sectionIndex)
   }
 
   private init(
@@ -61,7 +66,8 @@ struct MagazineLayoutSectionMetrics: Equatable {
     verticalSpacing: CGFloat,
     horizontalSpacing: CGFloat,
     sectionInsets: UIEdgeInsets,
-    itemInsets: UIEdgeInsets)
+    itemInsets: UIEdgeInsets,
+    isWaterfallLayout: Bool)
   {
     self.collectionViewWidth = collectionViewWidth
     self.collectionViewContentInset = collectionViewContentInset
@@ -69,7 +75,9 @@ struct MagazineLayoutSectionMetrics: Equatable {
     self.horizontalSpacing = horizontalSpacing
     self.sectionInsets = sectionInsets
     self.itemInsets = itemInsets
+    self.isWaterfallLayout = isWaterfallLayout
   }
+  
 
   // MARK: Internal
 
@@ -85,6 +93,7 @@ struct MagazineLayoutSectionMetrics: Equatable {
   var horizontalSpacing: CGFloat
   var sectionInsets: UIEdgeInsets
   var itemInsets: UIEdgeInsets
+  var isWaterfallLayout: Bool
 
   static func defaultSectionMetrics(
     forCollectionViewWidth width: CGFloat)
@@ -96,7 +105,8 @@ struct MagazineLayoutSectionMetrics: Equatable {
       verticalSpacing: MagazineLayout.Default.VerticalSpacing,
       horizontalSpacing: MagazineLayout.Default.HorizontalSpacing,
       sectionInsets: MagazineLayout.Default.SectionInsets,
-      itemInsets: MagazineLayout.Default.ItemInsets)
+      itemInsets: MagazineLayout.Default.ItemInsets,
+      isWaterfallLayout: false)
   }
 
   // MARK: Private

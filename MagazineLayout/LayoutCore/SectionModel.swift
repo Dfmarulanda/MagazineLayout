@@ -205,16 +205,22 @@ struct SectionModel {
 
   mutating func updateItemSizeMode(to sizeMode: MagazineLayoutItemSizeMode, atIndex index: Int) {
     // Accessing this array using an unsafe, untyped (raw) pointer avoids expensive copy-on-writes
-    // and Swift retain / release calls.
+    // and Swift retain / releases calls.
     let itemModelsPointer = UnsafeMutableRawPointer(mutating: &itemModels)
-    let directlyMutableItemModels = itemModelsPointer.assumingMemoryBound(to: ItemModel.self)
-
-    directlyMutableItemModels[index].sizeMode = sizeMode
-
+    let directlyMutableItemModels = itemModelsPointer.assumingMemoryBound(
+      to: ItemModel.self)
+    
+    if metrics.isWaterfallLayout {
+      let waterfallSizeMode = MagazineLayoutItemSizeMode(widthMode: .halfWidth, heightMode: sizeMode.heightMode)
+      directlyMutableItemModels[index].sizeMode = waterfallSizeMode
+    } else {
+      directlyMutableItemModels[index].sizeMode = sizeMode
+    }
+    
     if case let .static(staticHeight) = sizeMode.heightMode {
       directlyMutableItemModels[index].size.height = staticHeight
     }
-
+    
     updateIndexOfFirstInvalidatedRow(forChangeToItemAtIndex: index)
   }
 
@@ -514,6 +520,21 @@ struct SectionModel {
         // Apply top item inset now that we're laying out items
         currentY += metrics.itemInsets.top
       }
+      
+      //Only for Pinterest style layout, change the currentY to isntead be the height of the previous cell in the column
+      if metrics.isWaterfallLayout {
+        let itemModelsBeforeStartingIndex = itemModels.prefix(itemIndex)
+        let numberOfItemsToConsiderInPreviousRow = itemModel.sizeMode.widthMode.numberOfItemsInRow
+        let itemsToConsiderInPreviousRow = itemModelsBeforeStartingIndex.suffix(
+          numberOfItemsToConsiderInPreviousRow).reversed()
+        
+        let previousRow = Array(itemsToConsiderInPreviousRow)
+        if previousRow.count > 0 && itemIndex > (numberOfItemsToConsiderInPreviousRow - 1) {
+          let previousItem = itemModels[itemIndex - numberOfItemsToConsiderInPreviousRow]
+          currentY = previousItem.size.height + previousItem.originInSection.y + metrics.verticalSpacing
+        }
+      }
+      
 
       let currentLeadingMargin: CGFloat
       let availableWidthForItems: CGFloat
